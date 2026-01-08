@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2010 Jef Driesen
+ * Copyright (C) 2009 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,38 +19,51 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_VERSION_H
-#define DC_VERSION_H
+#ifndef DC_BUFFER_H
+#define DC_BUFFER_H
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define DC_VERSION "0.9.0"
-#define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
-#define DC_VERSION_MINOR @DC_VERSION_MINOR@
-#define DC_VERSION_MICRO @DC_VERSION_MICRO@
+typedef struct dc_buffer_t dc_buffer_t;
 
-#define DC_VERSION_CHECK(major,minor,micro) \
-	(DC_VERSION_MAJOR > (major) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR > (minor)) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR == (minor) && \
-		DC_VERSION_MICRO >= (micro)))
+dc_buffer_t *
+dc_buffer_new (size_t capacity);
 
-typedef struct dc_version_t {
-	unsigned int major;
-	unsigned int minor;
-	unsigned int micro;
-} dc_version_t;
-
-const char *
-dc_version (dc_version_t *version);
+void
+dc_buffer_free (dc_buffer_t *buffer);
 
 int
-dc_version_check (unsigned int major, unsigned int minor, unsigned int micro);
+dc_buffer_clear (dc_buffer_t *buffer);
+
+int
+dc_buffer_reserve (dc_buffer_t *buffer, size_t capacity);
+
+int
+dc_buffer_resize (dc_buffer_t *buffer, size_t size);
+
+int
+dc_buffer_append (dc_buffer_t *buffer, const unsigned char data[], size_t size);
+
+int
+dc_buffer_prepend (dc_buffer_t *buffer, const unsigned char data[], size_t size);
+
+int
+dc_buffer_insert (dc_buffer_t *buffer, size_t offset, const unsigned char data[], size_t size);
+
+int
+dc_buffer_slice (dc_buffer_t *buffer, size_t offset, size_t size);
+
+size_t
+dc_buffer_get_size (dc_buffer_t *buffer);
+
+unsigned char *
+dc_buffer_get_data (dc_buffer_t *buffer);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* DC_VERSION_H */
+#endif /* DC_BUFFER_H */

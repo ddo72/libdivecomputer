@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2010 Jef Driesen
+ * Copyright (C) 2012 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,38 +19,44 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_VERSION_H
-#define DC_VERSION_H
+#ifndef DC_CONTEXT_H
+#define DC_CONTEXT_H
+
+#include "common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define DC_VERSION "0.9.0"
-#define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
-#define DC_VERSION_MINOR @DC_VERSION_MINOR@
-#define DC_VERSION_MICRO @DC_VERSION_MICRO@
+typedef struct dc_context_t dc_context_t;
 
-#define DC_VERSION_CHECK(major,minor,micro) \
-	(DC_VERSION_MAJOR > (major) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR > (minor)) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR == (minor) && \
-		DC_VERSION_MICRO >= (micro)))
+typedef enum dc_loglevel_t {
+	DC_LOGLEVEL_NONE,
+	DC_LOGLEVEL_ERROR,
+	DC_LOGLEVEL_WARNING,
+	DC_LOGLEVEL_INFO,
+	DC_LOGLEVEL_DEBUG,
+	DC_LOGLEVEL_ALL
+} dc_loglevel_t;
 
-typedef struct dc_version_t {
-	unsigned int major;
-	unsigned int minor;
-	unsigned int micro;
-} dc_version_t;
+typedef void (*dc_logfunc_t) (dc_context_t *context, dc_loglevel_t loglevel, const char *file, unsigned int line, const char *function, const char *message, void *userdata);
 
-const char *
-dc_version (dc_version_t *version);
+dc_status_t
+dc_context_new (dc_context_t **context);
 
-int
-dc_version_check (unsigned int major, unsigned int minor, unsigned int micro);
+dc_status_t
+dc_context_free (dc_context_t *context);
+
+dc_status_t
+dc_context_set_loglevel (dc_context_t *context, dc_loglevel_t loglevel);
+
+dc_status_t
+dc_context_set_logfunc (dc_context_t *context, dc_logfunc_t logfunc, void *userdata);
+
+unsigned int
+dc_context_get_transports (dc_context_t *context);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* DC_VERSION_H */
+#endif /* DC_CONTEXT_H */

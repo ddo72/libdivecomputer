@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2010 Jef Driesen
+ * Copyright (C) 2008 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,38 +19,26 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_VERSION_H
-#define DC_VERSION_H
+#ifndef DC_REEFNET_SENSUSPRO_H
+#define DC_REEFNET_SENSUSPRO_H
+
+#include "common.h"
+#include "device.h"
+#include "parser.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define DC_VERSION "0.9.0"
-#define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
-#define DC_VERSION_MINOR @DC_VERSION_MINOR@
-#define DC_VERSION_MICRO @DC_VERSION_MICRO@
+#define REEFNET_SENSUSPRO_HANDSHAKE_SIZE 10
 
-#define DC_VERSION_CHECK(major,minor,micro) \
-	(DC_VERSION_MAJOR > (major) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR > (minor)) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR == (minor) && \
-		DC_VERSION_MICRO >= (micro)))
+dc_status_t
+reefnet_sensuspro_device_get_handshake (dc_device_t *device, unsigned char data[], unsigned int size);
 
-typedef struct dc_version_t {
-	unsigned int major;
-	unsigned int minor;
-	unsigned int micro;
-} dc_version_t;
-
-const char *
-dc_version (dc_version_t *version);
-
-int
-dc_version_check (unsigned int major, unsigned int minor, unsigned int micro);
+dc_status_t
+reefnet_sensuspro_device_write_interval (dc_device_t *device, unsigned char interval);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* DC_VERSION_H */
+#endif /* DC_REEFNET_SENSUSPRO_H */

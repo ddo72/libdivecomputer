@@ -19,38 +19,48 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_VERSION_H
-#define DC_VERSION_H
+#ifndef DC_DATETIME_H
+#define DC_DATETIME_H
+
+#include <limits.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define DC_VERSION "0.9.0"
-#define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
-#define DC_VERSION_MINOR @DC_VERSION_MINOR@
-#define DC_VERSION_MICRO @DC_VERSION_MICRO@
+#define DC_TIMEZONE_NONE INT_MIN
 
-#define DC_VERSION_CHECK(major,minor,micro) \
-	(DC_VERSION_MAJOR > (major) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR > (minor)) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR == (minor) && \
-		DC_VERSION_MICRO >= (micro)))
+#if defined (_WIN32) && !defined (__GNUC__)
+typedef __int64 dc_ticks_t;
+#else
+typedef long long int dc_ticks_t;
+#endif
 
-typedef struct dc_version_t {
-	unsigned int major;
-	unsigned int minor;
-	unsigned int micro;
-} dc_version_t;
+typedef struct dc_datetime_t {
+	int year;
+	int month;
+	int day;
+	int hour;
+	int minute;
+	int second;
+	int timezone;
+} dc_datetime_t;
 
-const char *
-dc_version (dc_version_t *version);
+dc_ticks_t
+dc_datetime_now (void);
 
-int
-dc_version_check (unsigned int major, unsigned int minor, unsigned int micro);
+dc_datetime_t *
+dc_datetime_localtime (dc_datetime_t *result,
+                       dc_ticks_t ticks);
+
+dc_datetime_t *
+dc_datetime_gmtime (dc_datetime_t *result,
+                    dc_ticks_t ticks);
+
+dc_ticks_t
+dc_datetime_mktime (const dc_datetime_t *dt);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* DC_VERSION_H */
+#endif /* DC_DATETIME_H */

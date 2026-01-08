@@ -21,7 +21,7 @@
 
 #include <string.h> // memcmp, memcpy
 #include <stdlib.h> // malloc, free
-
+#include <stdio.h> // snprintf
 #include "shearwater_common.h"
 
 #include "context-private.h"
@@ -324,69 +324,121 @@ done:
 	return status;
 }
 
-
 dc_status_t
-shearwater_common_transfer (shearwater_common_device_t *device, const unsigned char input[], unsigned int isize, unsigned char output[], unsigned int osize, unsigned int *actual)
+shearwater_common_transfer (shearwater_common_device_t *device,
+                            const unsigned char input[], unsigned int isize,
+                            unsigned char output[], unsigned int osize,
+                            unsigned int *actual)
 {
-	dc_status_t status = DC_STATUS_SUCCESS;
-	dc_device_t *abstract = (dc_device_t *) device;
-	unsigned char packet[SZ_PACKET + 4];
-	unsigned int n = 0;
+    dc_status_t status = DC_STATUS_SUCCESS;
+    dc_device_t *abstract = (dc_device_t *) device;
+    unsigned char packet[SZ_PACKET + 4];
+    unsigned int n = 0;
 
-	if (isize > SZ_PACKET || osize > SZ_PACKET)
-		return DC_STATUS_INVALIDARGS;
+    if (isize > SZ_PACKET || osize > SZ_PACKET)
+        return DC_STATUS_INVALIDARGS;
 
-	if (device_is_cancelled (abstract))
-		return DC_STATUS_CANCELLED;
+    if (device_is_cancelled (abstract))
+        return DC_STATUS_CANCELLED;
 
-	// Setup the request packet.
-	packet[0] = 0xFF;
-	packet[1] = 0x01;
-	packet[2] = isize + 1;
-	packet[3] = 0x00;
-	memcpy (packet + 4, input, isize);
+    // Setup the request packet.
+    packet[0] = 0xFF;
+    packet[1] = 0x01;
+    packet[2] = isize + 1;
+    packet[3] = 0x00;
+    memcpy(packet + 4, input, isize);
 
-	// Send the request packet.
-	status = shearwater_common_slip_write (device, packet, isize + 4);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to send the request packet.");
-		return status;
-	}
+    // Send the request packet.
+    status = shearwater_common_slip_write(device, packet, isize + 4);
+    if (status != DC_STATUS_SUCCESS) {
+        ERROR(abstract->context, "Failed to send the request packet.");
+        return status;
+    }
 
-	// Return early if no response packet is requested.
-	if (osize == 0) {
-		if (actual)
-			*actual = 0;
-		return DC_STATUS_SUCCESS;
-	}
+    // Return early if no response packet is requested.
+    if (osize == 0) {
+        if (actual)
+            *actual = 0;
+        return DC_STATUS_SUCCESS;
+    }
 
-	// Receive the response packet.
-	status = shearwater_common_slip_read (device, packet, sizeof (packet), &n);
-	if (status != DC_STATUS_SUCCESS) {
-		ERROR (abstract->context, "Failed to receive the response packet.");
-		return status;
-	}
+    // Receive the response packet.
+    status = shearwater_common_slip_read(device, packet, sizeof(packet), &n);
+    if (status != DC_STATUS_SUCCESS) {
+        ERROR(abstract->context, "Failed to receive the response packet.");
+        return status;
+    }
 
-	// Validate the packet header.
-	if (n < 4 || packet[0] != 0x01 || packet[1] != 0xFF || packet[3] != 0x00) {
-		ERROR (abstract->context, "Invalid packet header.");
-		return DC_STATUS_PROTOCOL;
-	}
+    // Basic header check:
+    // packet[0..3] should be: 01 FF <len> 00
+    if (n < 4 || packet[0] != 0x01 || packet[1] != 0xFF || packet[3] != 0x00) {
+        ERROR(abstract->context, "Invalid packet header.");
+        return DC_STATUS_PROTOCOL;
+    }
 
-	// Validate the packet length.
-	unsigned int length = packet[2];
-	if (length < 1 || length - 1 + 4 != n || length - 1 > osize) {
-		ERROR (abstract->context, "Invalid packet header.");
-		return DC_STATUS_PROTOCOL;
-	}
+    // Shearwater BLE now sends:
+    //   packet[0..3] = 01 FF <len> 00
+    //   packet[4..]  = payload (may or may not include trailing CRC bytes)
+    //
+    // For old firmware:
+    //   n == (length - 1) + 4
+    //   length - 1 <= osize
+    //
+    // For newer BLE firmware (what your logs show), we can see:
+    //   n and length are consistent, but blocks can be large.
+    //
+    // We support both in a backward-compatible way.
+    unsigned int length   = packet[2];          // reported by device
+    unsigned int body_len = (n >= 4) ? (n - 4) : 0; // bytes after header
 
-	memcpy (output, packet + 4, length - 1);
-	if (actual)
-		*actual = length - 1;
+    if (length < 1 || body_len < 1) {
+        ERROR(abstract->context, "Invalid packet header.");
+        return DC_STATUS_PROTOCOL;
+    }
 
-	return DC_STATUS_SUCCESS;
+    // ---- Case 1: legacy behavior (no CRC extension, or fits as-is) ----
+    //
+    // Expected layout:
+    //   total bytes: n = (length - 1) + 4
+    //   payload:     length - 1 (must fit in osize)
+    if (length - 1 + 4 == n && (length - 1) <= osize) {
+        unsigned int payload = length - 1;
+
+        memcpy(output, packet + 4, payload);
+
+        if (actual)
+            *actual = payload;
+
+        return DC_STATUS_SUCCESS;
+    }
+
+    // ---- Case 2: newer BLE firmware with possible trailing CRC ----
+    //
+    // We accept responses where:
+    //   body_len >= 3
+    //   and (body_len - 2) <= osize
+    //
+    // In that case we treat the last 2 bytes as a CRC/trailer and drop them
+    // before returning to the caller.
+    if (body_len >= 3 && body_len - 2 <= osize) {
+        unsigned int payload = body_len - 2; // drop final 2 trailer bytes
+        memcpy(output, packet + 4, payload);
+
+        // NOTE: End-of-log detection is handled at a higher level by the
+        // LRE/XOR decompression (shearwater_common_decompress_lre), so we do
+        // not try to infer end-of-log here. We just return the payload block.
+        if (actual)
+            *actual = payload;
+
+        return DC_STATUS_SUCCESS;
+    }
+
+    // Anything else is still treated as invalid.
+    ERROR(abstract->context,
+          "Invalid packet header (len=%u, n=%u, body_len=%u, osize=%u).",
+          length, n, body_len, osize);
+    return DC_STATUS_PROTOCOL;
 }
-
 
 dc_status_t
 shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buffer, unsigned int address, unsigned int size, unsigned int compression, dc_event_progress_t *progress)
@@ -486,6 +538,17 @@ shearwater_common_download (shearwater_common_device_t *device, dc_buffer_t *buf
 		}
 
 		nbytes += length;
+
+        /* ✅ HARD SAFETY LIMIT — PREVENT INFINITE BLE LOOP */
+        if (block >= 3000) {   // 3000 is a very safe upper bound
+            ERROR(abstract->context,
+                "Shearwater BLE: hard block limit reached (%u). Forcing quit.",
+                block);
+
+            done = 1;
+            break;
+        }
+        
 		block++;
 	}
 

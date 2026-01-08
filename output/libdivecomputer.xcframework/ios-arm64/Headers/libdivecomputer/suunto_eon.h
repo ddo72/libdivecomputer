@@ -1,7 +1,7 @@
 /*
  * libdivecomputer
  *
- * Copyright (C) 2010 Jef Driesen
+ * Copyright (C) 2008 Jef Driesen
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,38 +19,25 @@
  * MA 02110-1301 USA
  */
 
-#ifndef DC_VERSION_H
-#define DC_VERSION_H
+#ifndef DC_SUUNTO_EON_H
+#define DC_SUUNTO_EON_H
+
+#include "common.h"
+#include "device.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
 
-#define DC_VERSION "0.9.0"
-#define DC_VERSION_MAJOR @DC_VERSION_MAJOR@
-#define DC_VERSION_MINOR @DC_VERSION_MINOR@
-#define DC_VERSION_MICRO @DC_VERSION_MICRO@
+#define SUUNTO_EON_NAME_SIZE 20
 
-#define DC_VERSION_CHECK(major,minor,micro) \
-	(DC_VERSION_MAJOR > (major) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR > (minor)) || \
-	(DC_VERSION_MAJOR == (major) && DC_VERSION_MINOR == (minor) && \
-		DC_VERSION_MICRO >= (micro)))
+dc_status_t
+suunto_eon_device_write_name (dc_device_t *device, unsigned char data[], unsigned int size);
 
-typedef struct dc_version_t {
-	unsigned int major;
-	unsigned int minor;
-	unsigned int micro;
-} dc_version_t;
-
-const char *
-dc_version (dc_version_t *version);
-
-int
-dc_version_check (unsigned int major, unsigned int minor, unsigned int micro);
+dc_status_t
+suunto_eon_device_write_interval (dc_device_t *device, unsigned char interval);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* DC_VERSION_H */
+#endif /* DC_SUUNTO_EON_H */
